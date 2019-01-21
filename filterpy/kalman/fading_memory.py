@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=invalid-name, too-many-arguments, too-many-instance-attributes
+
 
 """Copyright 2015 Roger R Labbe Jr.
 
@@ -16,101 +18,179 @@ for more information.
 """
 
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import (absolute_import, division, unicode_literals)
+from copy import deepcopy
+from math import log, exp, sqrt
+import sys
+import warnings
 import numpy as np
+from numpy import dot, zeros, eye
 import scipy.linalg as linalg
-from numpy import dot, zeros, eye, asarray
-from filterpy.common import setter, setter_scalar, dot3
-
-
+from filterpy.stats import logpdf
+from filterpy.common import pretty_str
 
 class FadingKalmanFilter(object):
+    """
+    Fading memory Kalman filter. This implements a linear Kalman filter with
+    a fading memory effect controlled by `alpha`. This is obsolete. The
+    class KalmanFilter now incorporates the `alpha` attribute, and should
+    be used instead.
+
+    You are responsible for setting the
+    various state variables to reasonable values; the defaults below
+    will not give you a functional filter.
+
+    Parameters
+    ----------
+
+    alpha : float, >= 1
+        alpha controls how much you want the filter to forget past
+        measurements. alpha==1 yields identical performance to the
+        Kalman filter. A typical application might use 1.01
+
+    dim_x : int
+        Number of state variables for the Kalman filter. For example, if
+        you are tracking the position and velocity of an object in two
+        dimensions, dim_x would be 4.
+
+        This is used to set the default size of P, Q, and u
+
+    dim_z : int
+        Number of of measurement inputs. For example, if the sensor
+        provides you with position in (x,y), dim_z would be 2.
+
+    dim_u : int (optional)
+        size of the control input, if it is being used.
+        Default value of 0 indicates it is not used.
+
+    Attributes
+    ----------
+
+    You will have to assign reasonable values to all of these before
+    running the filter. All must have dtype of float
+
+    x : ndarray (dim_x, 1), default = [0,0,0...0]
+        state of the filter
+
+    P : ndarray (dim_x, dim_x), default identity matrix
+        covariance matrix
+
+    x_prior : numpy.array(dim_x, 1)
+        Prior (predicted) state estimate. The *_prior and *_post attributes
+        are for convienence; they store the  prior and posterior of the
+        current epoch. Read Only.
+
+    P_prior : numpy.array(dim_x, dim_x)
+        Prior (predicted) state covariance matrix. Read Only.
+
+    x_post : numpy.array(dim_x, 1)
+        Posterior (updated) state estimate. Read Only.
+
+    P_post : numpy.array(dim_x, dim_x)
+        Posterior (updated) state covariance matrix. Read Only.
+
+    z : ndarray
+        Last measurement used in update(). Read only.
+
+    Q : ndarray (dim_x, dim_x), default identity matrix
+        Process uncertainty matrix
+
+    R : ndarray (dim_z, dim_z), default identity matrix
+        measurement uncertainty
+
+    H : ndarray (dim_z, dim_x)
+        measurement function
+
+    F : ndarray (dim_x, dim_x)
+        state transistion matrix
+
+    B : ndarray (dim_x, dim_u), default 0
+        control transition matrix
+
+    y : numpy.array
+        Residual of the update step. Read only.
+
+    K : numpy.array(dim_x, dim_z)
+        Kalman gain of the update step. Read only.
+
+    S :  numpy.array
+        System uncertainty (P projected to measurement space). Read only.
+
+    S :  numpy.array
+        Inverse system uncertainty. Read only.
+
+    log_likelihood : float
+        log-likelihood of the last measurement. Read only.
+
+    likelihood : float
+        likelihood of last measurement. Read only.
+
+        Computed from the log-likelihood. The log-likelihood can be very
+        small,  meaning a large negative value such as -28000. Taking the
+        exp() of that results in 0.0, which can break typical algorithms
+        which multiply by this value, so by default we always return a
+        number >= sys.float_info.min.
+
+    mahalanobis : float
+        mahalanobis distance of the innovation. Read only.
+
+
+    Examples
+    --------
+
+    See my book Kalman and Bayesian Filters in Python
+    https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python
+    """
+
 
     def __init__(self, alpha, dim_x, dim_z, dim_u=0):
-        """ Create a Kalman filter. You are responsible for setting the
-        various state variables to reasonable values; the defaults below will not give you a functional filter.
 
-        Parameters
-        ----------
-
-        alpha : float, >= 1
-            alpha controls how much you want the filter to forget past
-            measurements. alpha==1 yields identical performance to the
-            Kalman filter. A typical application might use 1.01
-
-        dim_x : int
-            Number of state variables for the Kalman filter. For example, if
-            you are tracking the position and velocity of an object in two
-            dimensions, dim_x would be 4.
-
-            This is used to set the default size of P, Q, and u
-
-        dim_z : int
-            Number of of measurement inputs. For example, if the sensor
-            provides you with position in (x,y), dim_z would be 2.
-
-        dim_u : int (optional)
-            size of the control input, if it is being used.
-            Default value of 0 indicates it is not used.
-
-
-        **Attributes**
-
-        You will have to assign reasonable values to all of these before
-        running the filter. All must have dtype of float
-
-        x : ndarray (dim_x, 1), default = [0,0,0...0]
-            state of the filter
-
-        P : ndarray (dim_x, dim_x), default identity matrix
-            covariance matrix
-
-        Q : ndarray (dim_x, dim_x), default identity matrix
-            Process uncertainty matrix
-
-        R : ndarray (dim_z, dim_z), default identity matrix
-            measurement uncertainty
-
-        H : ndarray (dim_z, dim_x)
-            measurement function
-
-        F : ndarray (dim_x, dim_x)
-            state transistion matrix
-
-        B : ndarray (dim_x, dim_u), default 0
-            control transition matrix
-        """
+        warnings.warn(
+            "Use KalmanFilter class instead; it also provides the alpha attribute",
+            DeprecationWarning)
 
         assert alpha >= 1
         assert dim_x > 0
         assert dim_z > 0
         assert dim_u >= 0
 
-
         self.alpha_sq = alpha**2
         self.dim_x = dim_x
         self.dim_z = dim_z
         self.dim_u = dim_u
 
-        self._x = zeros((dim_x,1)) # state
-        self._P = eye(dim_x)       # uncertainty covariance
-        self._Q = eye(dim_x)       # process uncertainty
-        self._B = 0                # control transition matrix
-        self._F = 0                # state transition matrix
-        self._H = 0                # Measurement function
-        self._R = eye(dim_z)       # state uncertainty
+        self.x = zeros((dim_x, 1))     # state
+        self.P = eye(dim_x)            # uncertainty covariance
+        self.Q = eye(dim_x)            # process uncertainty
+        self.B = 0.                    # control transition matrix
+        self.F = np.eye(dim_x)         # state transition matrix
+        self.H = zeros((dim_z, dim_x)) # Measurement function
+        self.R = eye(dim_z)            # state uncertainty
+        self.z = np.array([[None]*dim_z]).T
 
         # gain and residual are computed during the innovation step. We
         # save them so that in case you want to inspect them for various
         # purposes
-        self._K = 0 # kalman gain
-        self._y = zeros((dim_z, 1))
-        self._S = 0 # system uncertainty in measurement space
+        self.K = 0 # kalman gain
+        self.y = zeros((dim_z, 1))
+        self.S = np.zeros((dim_z, dim_z))   # system uncertainty (measurement space)
+        self.SI = np.zeros((dim_z, dim_z))  # inverse system uncertainty
 
         # identity matrix. Do not alter this.
-        self._I = np.eye(dim_x)
+        self.I = np.eye(dim_x)
 
+        # Only computed only if requested via property
+        self._log_likelihood = log(sys.float_info.min)
+        self._likelihood = sys.float_info.min
+        self._mahalanobis = None
+
+        # these will always be a copy of x,P after predict() is called
+        self.x_prior = self.x.copy()
+        self.P_prior = self.P.copy()
+
+        # these will always be a copy of x,P after update() is called
+        self.x_post = self.x.copy()
+        self.P_post = self.P.copy()
 
     def update(self, z, R=None):
         """
@@ -129,41 +209,48 @@ class FadingKalmanFilter(object):
         """
 
         if z is None:
+            self.z = np.array([[None]*self.dim_z]).T
+            self.x_post = self.x.copy()
+            self.P_post = self.P.copy()
             return
 
         if R is None:
-            R = self._R
+            R = self.R
         elif np.isscalar(R):
             R = eye(self.dim_z) * R
 
-        # rename for readability and a tiny extra bit of speed
-        H = self._H
-        P = self._P
-        x = self._x
-
         # y = z - Hx
         # error (residual) between measurement and prediction
-        self._y = z - dot(H, x)
+        self.y = z - dot(self.H, self.x)
+
+        PHT = dot(self.P, self.H.T)
 
         # S = HPH' + R
         # project system uncertainty into measurement space
-        S = dot3(H, P, H.T) + R
+        self.S = dot(self.H, PHT) + R
+        self.SI = linalg.inv(self.S)
 
         # K = PH'inv(S)
         # map system uncertainty into kalman gain
-        K = dot3(P, H.T, linalg.inv(S))
+        self.K = PHT.dot(self.SI)
 
         # x = x + Ky
         # predict new x with residual scaled by the kalman gain
-        self._x = x + dot(K, self._y)
+        self.x = self.x + dot(self.K, self.y)
 
         # P = (I-KH)P(I-KH)' + KRK'
-        I_KH = self._I - dot(K, H)
-        self._P = dot3(I_KH, P, I_KH.T) + dot3(K, R, K.T)
+        I_KH = self.I - dot(self.K, self.H)
+        self.P = dot(I_KH, self.P).dot(I_KH.T) + dot(self.K, R).dot(self.K.T)
 
-        self._S = S
-        self._K = K
+        # save measurement and posterior state
+        self.z = deepcopy(z)
+        self.x_post = self.x.copy()
+        self.P_post = self.P.copy()
 
+            # set to None to force recompute
+        self._log_likelihood = None
+        self._likelihood = None
+        self._mahalanobis = None
 
     def predict(self, u=0):
         """ Predict next position.
@@ -177,11 +264,14 @@ class FadingKalmanFilter(object):
         """
 
         # x = Fx + Bu
-        self._x = dot(self._F, self._x) + dot(self._B, u)
+        self.x = dot(self.F, self.x) + dot(self.B, u)
 
         # P = FPF' + Q
-        self._P = self.alpha_sq*dot3(self._F, self._P, self._F.T) + self._Q
+        self.P = self.alpha_sq * dot(self.F, self.P).dot(self.F.T) + self.Q
 
+        # save prior
+        self.x_prior = self.x.copy()
+        self.P_prior = self.P.copy()
 
     def batch_filter(self, zs, Rs=None, update_first=False):
         """ Batch processes a sequences of measurements.
@@ -224,36 +314,38 @@ class FadingKalmanFilter(object):
             In other words `covariance[k,:,:]` is the covariance at step `k`.
         """
 
-        n = np.size(zs,0)
+        n = np.size(zs, 0)
         if Rs is None:
-            Rs = [None]*n
+            Rs = [None] * n
+
+        #pylint: disable=bad-whitespace
 
         # mean estimates from Kalman Filter
-        means   = zeros((n,self.dim_x,1))
-        means_p = zeros((n,self.dim_x,1))
+        means   = zeros((n, self.dim_x, 1))
+        means_p = zeros((n, self.dim_x, 1))
 
         # state covariances from Kalman Filter
-        covariances   = zeros((n,self.dim_x,self.dim_x))
-        covariances_p = zeros((n,self.dim_x,self.dim_x))
+        covariances   = zeros((n, self.dim_x, self.dim_x))
+        covariances_p = zeros((n, self.dim_x, self.dim_x))
 
         if update_first:
-            for i,(z,r) in enumerate(zip(zs,Rs)):
-                self.update(z,r)
-                means[i,:]         = self._x
-                covariances[i,:,:] = self._P
+            for i, (z, r) in enumerate(zip(zs, Rs)):
+                self.update(z, r)
+                means[i, :]          = self.x
+                covariances[i, :, :] = self.P
 
                 self.predict()
-                means_p[i,:]         = self._x
-                covariances_p[i,:,:] = self._P
+                means_p[i, :]          = self.x
+                covariances_p[i, :, :] = self.P
         else:
-            for i,(z,r) in enumerate(zip(zs,Rs)):
+            for i, (z, r) in enumerate(zip(zs, Rs)):
                 self.predict()
-                means_p[i,:]         = self._x
-                covariances_p[i,:,:] = self._P
+                means_p[i, :]          = self.x
+                covariances_p[i, :, :] = self.P
 
-                self.update(z,r)
-                means[i,:]         = self._x
-                covariances[i,:,:] = self._P
+                self.update(z, r)
+                means[i, :]          = self.x
+                covariances[i, :, :] = self.P
 
         return (means, covariances, means_p, covariances_p)
 
@@ -275,8 +367,8 @@ class FadingKalmanFilter(object):
             State vector and covariance array of the prediction.
         """
 
-        x = dot(self._F, self._x) + dot(self._B, u)
-        P = self.alpha_sq*dot3(self._F, self._P, self._F.T) + self.Q
+        x = dot(self.F, self.x) + dot(self.B, u)
+        P = self.alpha_sq * dot(self.F, self.P).dot(self.F.T) + self.Q
         return (x, P)
 
 
@@ -284,7 +376,7 @@ class FadingKalmanFilter(object):
         """ returns the residual for the given measurement (z). Does not alter
         the state of the filter.
         """
-        return z - dot(self._H, self._x)
+        return z - dot(self.H, self.x)
 
 
     def measurement_of_state(self, x):
@@ -302,93 +394,71 @@ class FadingKalmanFilter(object):
         z : np.array
             measurement corresponding to the given state
         """
-        return dot(self._H, x)
+        return dot(self.H, x)
 
 
     @property
-    def Q(self):
-        """ Process uncertainty"""
-        return self._Q
+    def alpha(self):
+        """ scaling factor for fading memory"""
 
-
-    @Q.setter
-    def Q(self, value):
-        self._Q = setter_scalar(value, self.dim_x)
+        return sqrt(self.alpha_sq)
 
     @property
-    def P(self):
-        """ covariance matrix"""
-        return self._P
-
-
-    @P.setter
-    def P(self, value):
-        self._P = setter_scalar(value, self.dim_x)
-
+    def log_likelihood(self):
+        """
+        log-likelihood of the last measurement.
+        """
+        if self._log_likelihood is None:
+            self._log_likelihood = logpdf(x=self.y, cov=self.S)
+        return self._log_likelihood
 
     @property
-    def R(self):
-        """ measurement uncertainty"""
-        return self._R
-
-
-    @R.setter
-    def R(self, value):
-        self._R = setter_scalar(value, self.dim_z)
-
-    @property
-    def H(self):
-        """ Measurement function"""
-        return self._H
-
-
-    @H.setter
-    def H(self, value):
-        self._H = setter(value, self.dim_z, self.dim_x)
-
+    def likelihood(self):
+        """
+        Computed from the log-likelihood. The log-likelihood can be very
+        small,  meaning a large negative value such as -28000. Taking the
+        exp() of that results in 0.0, which can break typical algorithms
+        which multiply by this value, so by default we always return a
+        number >= sys.float_info.min.
+        """
+        if self._likelihood is None:
+            self._likelihood = exp(self.log_likelihood)
+            if self._likelihood == 0:
+                self._likelihood = sys.float_info.min
+        return self._likelihood
 
     @property
-    def F(self):
-        """ state transition matrix"""
-        return self._F
+    def mahalanobis(self):
+        """"
+        Mahalanobis distance of innovation. E.g. 3 means measurement
+        was 3 standard deviations away from the predicted value.
 
+        Returns
+        -------
+        mahalanobis : float
+        """
+        if self._mahalanobis is None:
+            self._mahalanobis = sqrt(float(dot(dot(self.y.T, self.SI), self.y)))
+        return self._mahalanobis
 
-    @F.setter
-    def F(self, value):
-        self._F = setter(value, self.dim_x, self.dim_x)
-
-    @property
-    def B(self):
-        """ control transition matrix"""
-        return self._B
-
-
-    @B.setter
-    def B(self, value):
-        """ control transition matrix"""
-        self._B = setter (value, self.dim_x, self.dim_u)
-
-
-    @property
-    def x(self):
-        """ state vector."""
-        assert False
-
-    @x.setter
-    def x(self, value):
-        assert False
-
-    @property
-    def K(self):
-        """ Kalman gain """
-        return self._K
-
-    @property
-    def y(self):
-        """ measurement residual (innovation) """
-        return self._y
-
-    @property
-    def S(self):
-        """ system uncertainy in measurement space """
-        return self._S
+    def __repr__(self):
+        return '\n'.join([
+            'FadingKalmanFilter object',
+            pretty_str('dim_x', self.x),
+            pretty_str('dim_z', self.x),
+            pretty_str('dim_u', self.dim_u),
+            pretty_str('x', self.x),
+            pretty_str('P', self.P),
+            pretty_str('F', self.F),
+            pretty_str('Q', self.Q),
+            pretty_str('R', self.R),
+            pretty_str('H', self.H),
+            pretty_str('K', self.K),
+            pretty_str('y', self.y),
+            pretty_str('S', self.S),
+            pretty_str('B', self.B),
+            pretty_str('likelihood', self.likelihood),
+            pretty_str('log-likelihood', self.log_likelihood),
+            pretty_str('mahalanobis', self.mahalanobis),
+            pretty_str('alpha', self.alpha)
+            ])

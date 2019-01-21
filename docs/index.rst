@@ -5,7 +5,7 @@ FilterPy
 ********
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
 
 
 FilterPy is a Python library that implements a number of Bayesian filters,
@@ -175,64 +175,69 @@ Linear Kalman Filters
 Implements various Kalman filters using the linear equations form of the filter.
 
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 1
 
-   kalman/KalmanFilter
-   kalman/FixedLagSmoother
-   kalman/SquareRootFilter
-   kalman/InformationFilter
-   kalman/FadingKalmanFilter
-   kalman/MMAEFilterBank
-   kalman/IMMEstimator
+    kalman/KalmanFilter
+    kalman/Saver
+    kalman/FixedLagSmoother
+    kalman/SquareRootFilter
+    kalman/InformationFilter
+    kalman/FadingKalmanFilter
+    kalman/MMAEFilterBank
+    kalman/IMMEstimator
 
    
 Extended Kalman Filter
 ++++++++++++++++++++++
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 1
 
-   kalman/ExtendedKalmanFilter
+    kalman/ExtendedKalmanFilter
    
 Unscented Kalman Filter
 +++++++++++++++++++++++
 These modules are used to implement the Unscented Kalman filter.
 
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 1
    
-   kalman/UnscentedKalmanFilter
-   kalman/unscented_transform
+    kalman/UnscentedKalmanFilter
+    kalman/unscented_transform
  
 Ensemble Kalman Filter
 +++++++++++++++++++++++
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 1
 
-   kalman/EnsembleKalmanFilter
+    kalman/EnsembleKalmanFilter
 
 
 filterpy.common
 ---------------
 
-Contains various useful functions that are not filters, but support the
-filtering classes and functions.
+Contains various useful functions that support the filtering classes 
+and functions. Most useful are functions to compute the process noise
+matrix Q. It also implements the Van Loan discretization of a linear
+differential equation.
 
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 1
    
-   common/common
+    common/common
 
 
 filterpy.stats
 --------------
 
-Contains various statistical functions and plotting of things like
-Gaussians and covariance ellipses.
+Contains statistical functions useful for Kalman filtering such as
+multivariate Gaussian multiplication, computing the log-likelihood,
+NESS, and mahalanobis distance, along with plotting routines to plot
+multivariate Gaussians CDFs, PDFs, and covariance ellipses.
 
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 1
    
-   stats/stats
+    stats/stats
 
 
 filterpy.monte_carlo
@@ -242,9 +247,9 @@ Routines for Markov Chain Monte Carlo (MCMC) computation, mainly for
 particle filtering.
 
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 1
    
-   monte_carlo/resampling
+    monte_carlo/resampling
 
 filterpy.discrete_bayes
 -----------------------
@@ -252,9 +257,9 @@ filterpy.discrete_bayes
 Routines for performing discrete Bayes filtering.
 
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 1
    
-   discrete_bayes/discrete_bayes
+    discrete_bayes/discrete_bayes
 
 filterpy.gh
 -----------
@@ -263,15 +268,15 @@ These classes various g-h filters. The functions are helpers that provide
 settings for the *g* and *h* parameters for various common filters.
 
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 1
    
-   gh/GHFilterOrder
-   gh/GHFilter
-   gh/GHKFilter
-   gh/optimal_noise_smoothing
-   gh/least_squares_parameters
-   gh/critical_damping_parameters
-   gh/benedict_bornder_constants
+    gh/GHFilterOrder
+    gh/GHFilter
+    gh/GHKFilter
+    gh/optimal_noise_smoothing
+    gh/least_squares_parameters
+    gh/critical_damping_parameters
+    gh/benedict_bornder_constants
 
 
 
@@ -285,26 +290,26 @@ I suppose some would also find this simpler to use than the standard
 Kalman filter.
 
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 1
    
-   memory/FadingMemoryFilter
+    memory/FadingMemoryFilter
 
 
 filterpy.hinfinity
 ------------------
 
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 1
    
-   hinfinity/HInfinityFilter
+    hinfinity/HInfinityFilter
 
 filterpy.leastsq
 ++++++++++++++++
 
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 1
    
-   leastsq/LeastSquaresFilter
+    leastsq/LeastSquaresFilter
 
    
 References

@@ -2,7 +2,7 @@ KalmanFilter
 ============
 
 Implements a linear Kalman filter. For now the best documentation
-is my free book Kalman and Bayesian Filters in Python [1]_
+is my free book Kalman and Bayesian Filters in Python [2]_
 
 The test files in this directory also give you a basic idea of use,
 albeit without much description.
@@ -43,7 +43,7 @@ P : ndarray (dim_x, dim_x), default eye(dim_x)
 Q : ndarray (dim_x, dim_x), default eye(dim_x)
     Process uncertainty/noise
 
-R : ndarray (dim_z, dim_z), default eye(dim_x)
+R : ndarray (dim_z, dim_z), default eye(dim_z)
     measurement uncertainty/noise
 
 H : ndarray (dim_z, dim_x)
@@ -128,7 +128,7 @@ Define the measurement function:
     f.H = np.array([[1.,0.]])
 
 Define the covariance matrix. Here I take advantage of the fact that
-P already contains np.eye(dim_x), and just multipy by the uncertainty:
+P already contains np.eye(dim_x), and just multiply by the uncertainty:
 
 .. code::
 
@@ -180,10 +180,9 @@ while some_condition_is_true:
     do_something_with_estimate (f.x)
 
 
-Procedural Form
-===============
+**Procedural Form**
 
-This module also contains stand alone functions to peform Kalman filtering.
+This module also contains stand alone functions to perform Kalman filtering.
 Use these if you are not a fan of objects.
 
 **Example**
@@ -198,7 +197,7 @@ Use these if you are not a fan of objects.
 **References**
 
 
-.. [1] Labbe, Roger. "Kalman and Bayesian Filters in Python".
+.. [2] Labbe, Roger. "Kalman and Bayesian Filters in Python".
 
 github repo:
     https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python

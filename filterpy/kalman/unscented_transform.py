@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=invalid-name, too-many-arguments
+
 """Copyright 2015 Roger R Labbe Jr.
 
 FilterPy library.
@@ -19,21 +21,25 @@ import numpy as np
 
 def unscented_transform(sigmas, Wm, Wc, noise_cov=None,
                         mean_fn=None, residual_fn=None):
-    """ Computes unscented transform of a set of sigma points and weights.
+    r"""
+    Computes unscented transform of a set of sigma points and weights.
     returns the mean and covariance in a tuple.
+
+    This works in conjunction with the UnscentedKalmanFilter class.
+
 
     Parameters
     ----------
 
-    sigmas: ndarray [#sigmas per dimension, dimension]
+    sigmas: ndarray, of size (n, 2n+1)
         2D array of sigma points.
 
     Wm : ndarray [# sigmas per dimension]
-        Weights for the mean. Must sum to 1.
+        Weights for the mean.
 
 
     Wc : ndarray [# sigmas per dimension]
-        Weights for the covariance. Must sum to 1.
+        Weights for the covariance.
 
     noise_cov : ndarray, optional
         noise matrix added to the final computed covariance matrix.
@@ -74,7 +80,6 @@ def unscented_transform(sigmas, Wm, Wc, noise_cov=None,
                     y -= 2*np.pi
                 return y
 
-
     Returns
     -------
 
@@ -83,25 +88,34 @@ def unscented_transform(sigmas, Wm, Wc, noise_cov=None,
 
     P : ndarray
         covariance of the sigma points after passing throgh the transform.
+
+    Examples
+    --------
+
+    See my book Kalman and Bayesian Filters in Python
+    https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python
     """
 
     kmax, n = sigmas.shape
 
-
-    if mean_fn is None:
-        # new mean is just the sum of the sigmas * weight
-        x = np.dot(Wm, sigmas)    # dot = \Sigma^n_1 (W[k]*Xi[k])
-    else:
-        x = mean_fn(sigmas, Wm)
+    try:
+        if mean_fn is None:
+            # new mean is just the sum of the sigmas * weight
+            x = np.dot(Wm, sigmas)    # dot = \Sigma^n_1 (W[k]*Xi[k])
+        else:
+            x = mean_fn(sigmas, Wm)
+    except:
+        print(sigmas)
+        raise
 
 
     # new covariance is the sum of the outer product of the residuals
     # times the weights
 
     # this is the fast way to do this - see 'else' for the slow way
-    if residual_fn is None:
-        y = sigmas - x[np.newaxis,:]
-        P = y.T.dot(np.diag(Wc)).dot(y)
+    if residual_fn is np.subtract or residual_fn is None:
+        y = sigmas - x[np.newaxis, :]
+        P = np.dot(y.T, np.dot(np.diag(Wc), y))
     else:
         P = np.zeros((n, n))
         for k in range(kmax):

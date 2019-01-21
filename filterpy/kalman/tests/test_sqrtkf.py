@@ -20,6 +20,7 @@ from __future__ import (absolute_import, division, print_function,
 import numpy.random as random
 import numpy as np
 import matplotlib.pyplot as plt
+from filterpy.common import Saver
 from filterpy.kalman import SquareRootKalmanFilter, KalmanFilter
 
 DO_PLOT = False
@@ -34,8 +35,8 @@ def test_noisy_1d():
 
     f.H = np.array([[1.,0.]])    # Measurement function
     f.P *= 1000.                  # covariance matrix
-    f.R = 5                       # state uncertainty
-    f.Q = 0.0001                 # process uncertainty
+    f.R *= 5                       # state uncertainty
+    f.Q *= 0.0001                 # process uncertainty
 
     fsq = SquareRootKalmanFilter (dim_x=2, dim_z=1)
 
@@ -47,13 +48,18 @@ def test_noisy_1d():
 
     fsq.H = np.array([[1.,0.]])  # Measurement function
     fsq.P = np.eye(2) * 1000.    # covariance matrix
-    fsq.R = 5                    # state uncertainty
-    fsq.Q = 0.0001               # process uncertainty
+    fsq.R *= 5                    # state uncertainty
+    fsq.Q *= 0.0001               # process uncertainty
+
+
+    # does __repr__ work?
+    str(fsq)
 
     measurements = []
     results = []
 
     zs = []
+    s = Saver(fsq)
     for t in range (100):
         # create measurement = t plus white noise
         z = t + random.randn()*20
@@ -72,11 +78,8 @@ def test_noisy_1d():
         # save data
         results.append (f.x[0,0])
         measurements.append(z)
-
-
-    p = f.P - fsq.P
-    print(f.P)
-    print(fsq.P)
+        s.save()
+    s.to_array()
 
     for i in range(f.P.shape[0]):
         assert abs(f.P[i,i] - fsq.P[i,i]) < 0.01
@@ -96,7 +99,7 @@ def test_noisy_1d():
         p4, = plt.plot(m[:,0], 'm')
         p3, = plt.plot ([0,100],[0,100], 'g') # perfect result
         plt.legend([p1,p2, p3, p4],
-                   ["noisy measurement", "KF output", "ideal", "batch"], 4)
+                   ["noisy measurement", "KF output", "ideal", "batch"], loc=4)
 
 
         plt.show()

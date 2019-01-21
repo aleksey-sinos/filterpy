@@ -9,6 +9,12 @@ will find useful when you build your filters.
 
 -----
 
+
+.. autofunction:: Saver
+
+
+-----
+
 .. autofunction:: Q_discrete_white_noise
 
 -----
@@ -23,6 +29,13 @@ will find useful when you build your filters.
 
 .. autofunction:: linear_ode_discretation
 
+-----
+
+.. autofunction:: kinematic_kf
+
+-----
+
+.. autofunction:: kinematic_state_transition
 
 -----
 
@@ -30,13 +43,10 @@ will find useful when you build your filters.
 
 -----
 
-.. autofunction:: dot3
+.. autofunction:: inv_diagonal
+
 
 -----
 
-.. autofunction:: dot4
-
------
-
-.. autofunction:: dotn
+.. autofunction:: outer_product_sum
 
